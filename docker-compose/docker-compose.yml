@@ -4,7 +4,7 @@ volumes:
 
 services:
   postgres:
-    image: postgres:15
+    image: registry.ai-links.com/library/postgres:16.9-alpine
     container_name: mlflow-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -13,15 +13,15 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "25432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: registry.ai-links.com/minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: mlflow-minio
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -39,7 +39,7 @@ services:
       retries: 20
 
   create-bucket:
-    image: minio/mc:latest
+    image: registry.ai-links.com/minio/minio:RELEASE.2025-04-22T22-12-26Z
     container_name: mlflow-create-bucket
     depends_on:
       minio:
@@ -54,7 +54,7 @@ services:
     restart: "no"
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow:${MLFLOW_VERSION}
+    image: registry.ai-links.com/mlflow/mlflow:${MLFLOW_VERSION:-v3.8.1}
     container_name: mlflow-server
     depends_on:
       postgres:
@@ -74,22 +74,35 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
       MLFLOW_S3_IGNORE_TLS: "true"
-
+      MLFLOW_FLASK_SERVER_SECRET_KEY: ${MLFLOW_FLASK_SERVER_SECRET_KEY}
       # Server host/port
       MLFLOW_HOST: ${MLFLOW_HOST}
       MLFLOW_PORT: ${MLFLOW_PORT}
 
+      MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME}
+      MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
+      # Allow CORS from UI origin (comma-separated; set in .env or override)
+      MLFLOW_SERVER_CORS_ALLOWED_ORIGINS: ${MLFLOW_SERVER_CORS_ALLOWED_ORIGINS:-http://172.16.11.60:5000}
     command:
       - /bin/bash
       - -c
       - |
-        pip install --no-cache-dir psycopg2-binary boto3
+        apt-get update && apt-get install -y --no-install-recommends procps
+        mkdir -p /root/.pip
+        cat > /root/.pip/pip.conf << 'EOF'
+        [global]
+        index-url = https://mirrors.aliyun.com/pypi/simple/
+        trusted-host = mirrors.aliyun.com
+        EOF
+        pip install --no-cache-dir psycopg2-binary boto3 mlflow[auth] mlflow-oidc-auth[full]
         mlflow server \
           --backend-store-uri "${MLFLOW_BACKEND_STORE_URI}" \
           --artifacts-destination "${MLFLOW_ARTIFACTS_DESTINATION}" \
           --serve-artifacts \
+          --app-name basic-auth \
           --host "${MLFLOW_HOST}" \
-          --port "${MLFLOW_PORT}"
+          --port "${MLFLOW_PORT}" \
+          --cors-allowed-origins "${MLFLOW_SERVER_CORS_ALLOWED_ORIGINS:-http://172.16.11.60:5000}"
     ports:
       - "${MLFLOW_PORT}:${MLFLOW_PORT}"
     healthcheck:
@@ -100,7 +113,7 @@ services:
           "-c",
           "import urllib.request; urllib.request.urlopen('http://localhost:${MLFLOW_PORT}/health')",
         ]
-      interval: 10s
+      interval: 1000s
       timeout: 5s
       retries: 30
 

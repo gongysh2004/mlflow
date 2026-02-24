@@ -1,0 +1,27 @@
+# Production Dockerfile for MLflow with local code changes
+# This Dockerfile installs MLflow from the local source code instead of PyPI
+
+FROM python:3.10-slim-bullseye
+
+WORKDIR /opt/mlflow
+
+# Copy the entire MLflow source code
+# The build context should be the root of the MLflow repository
+COPY . /opt/mlflow
+
+# Install MLflow from local source
+# Using editable install (-e) allows you to modify code without rebuilding
+# Remove -e if you want a regular install (smaller image, but requires rebuild for changes)
+RUN pip install --no-cache-dir -e /opt/mlflow
+
+# Optional: Install additional dependencies if needed
+# RUN pip install --no-cache-dir <your-additional-packages>
+
+# Clean up to reduce image size (optional)
+RUN rm -rf /opt/mlflow/.git /opt/mlflow/tests /opt/mlflow/examples /opt/mlflow/docs
+
+# Set working directory
+WORKDIR /home/mlflow
+
+# Default command
+CMD ["sleep", "infinity"]

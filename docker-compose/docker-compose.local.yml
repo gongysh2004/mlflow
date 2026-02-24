@@ -1,0 +1,17 @@
+# Example docker-compose override for using custom MLflow image with local code
+# Usage: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+
+version: '3.8'
+
+services:
+  mlflow:
+    # Option 1: Build from local Dockerfile
+    build:
+      context: ..  # Parent directory (MLflow repository root)
+      dockerfile: docker/Dockerfile.local
+    # Remove or comment out the 'image' line when using 'build'
+    # image: registry.ai-links.com/mlflow/mlflow:v3.8.1
+
+    # Option 2: Use a pre-built custom image
+    # Uncomment this and comment out 'build' if you've already built the image:
+    # image: mlflow-custom:latest
