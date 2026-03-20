@@ -207,11 +207,14 @@ def _build_endpoint_config(
             openai_api_version=auth_config.get("api_version"),
         )
     elif model_config.provider == Provider.ANTHROPIC:
+        auth_config = model_config.auth_config or {}
         anthropic_config = {
             "anthropic_api_key": model_config.secret_value.get(_AuthConfigKey.API_KEY),
         }
-        if model_config.auth_config and "version" in model_config.auth_config:
-            anthropic_config["anthropic_version"] = model_config.auth_config["version"]
+        if "version" in auth_config:
+            anthropic_config["anthropic_version"] = auth_config["version"]
+        if api_base := auth_config.get(_AuthConfigKey.API_BASE):
+            anthropic_config["anthropic_api_base"] = api_base
         provider_config = AnthropicConfig(**anthropic_config)
     elif model_config.provider == Provider.MISTRAL:
         provider_config = MistralConfig(

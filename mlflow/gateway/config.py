@@ -188,10 +188,23 @@ class OpenAIConfig(ConfigModel):
 class AnthropicConfig(ConfigModel):
     anthropic_api_key: str
     anthropic_version: str = "2023-06-01"
+    # When unset, AnthropicProvider uses the official Messages API base URL.
+    anthropic_api_base: str | None = None
 
     @field_validator("anthropic_api_key", mode="before")
     def validate_anthropic_api_key(cls, value):
         return _resolve_api_key_from_input(value)
+
+    @field_validator("anthropic_api_base", mode="before")
+    def validate_anthropic_api_base(cls, value):
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            return value
+        stripped = value.strip()
+        if not stripped:
+            return None
+        return stripped.rstrip("/")
 
 
 class PaLMConfig(ConfigModel):

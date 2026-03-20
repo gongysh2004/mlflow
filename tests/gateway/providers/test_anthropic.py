@@ -96,6 +96,37 @@ async def test_completions():
 
 
 @pytest.mark.asyncio
+async def test_completions_custom_api_base():
+    resp = completions_response()
+    config = completions_config()
+    config["model"]["config"]["anthropic_api_base"] = "https://custom.anthropic.compat.example/v1"
+    with (
+        mock.patch("time.time", return_value=1677858242),
+        mock.patch("aiohttp.ClientSession.post", return_value=MockAsyncResponse(resp)) as mock_post,
+    ):
+        provider = AnthropicProvider(EndpointConfig(**config))
+        payload = {
+            "prompt": "How does a car work?",
+            "max_tokens": 200,
+            "stop": ["foobazbardiddly"],
+            "temperature": 1.0,
+        }
+        response = await provider.completions(completions.RequestPayload(**payload))
+        assert jsonable_encoder(response) == parsed_completions_response()
+        mock_post.assert_called_once_with(
+            "https://custom.anthropic.compat.example/v1/complete",
+            json={
+                "model": "claude-instant-1",
+                "temperature": 0.5,
+                "max_tokens_to_sample": 200,
+                "prompt": "\n\nHuman: How does a car work?\n\nAssistant:",
+                "stop_sequences": ["foobazbardiddly"],
+            },
+            timeout=ClientTimeout(total=MLFLOW_GATEWAY_ROUTE_TIMEOUT_SECONDS),
+        )
+
+
+@pytest.mark.asyncio
 async def test_completions_with_default_max_tokens():
     resp = completions_response()
     config = completions_config()

@@ -113,6 +113,8 @@ Access Claude models through the Anthropic passthrough:
 
 **Base URL:** `http://localhost:5000/gateway/anthropic`
 
+When you configure Anthropic through the **database-backed AI Gateway** (MLflow UI or API), you can set an optional **upstream API base URL** in the gateway secret’s auth configuration (key: `api_base`). If set, the server forwards Messages API traffic to that base (for example, a vendor-hosted Anthropic-compatible endpoint) instead of `https://api.anthropic.com/v1`. The value should include any required path prefix up to where `/messages` is appended (often ending in `/v1`).
+
 **Supported Endpoints:**
 
 - `POST /v1/messages` - Messages API
